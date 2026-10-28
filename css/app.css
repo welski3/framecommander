@@ -1,0 +1,739 @@
+/* Frame Commander — Blaze in dark mode.
+   Blaze derives everything from a 0→10 color scale (dark→light on a light theme),
+   so flipping the scale flips the whole UI. Everything else stays default Blaze. */
+:root {
+  --color-0: #f2f2f5;
+  --color-1: #dcdde4;
+  --color-2: #babcc8;
+  --color-3: #989aab;
+  --color-4: #7e8090;
+  --color-5: #67697a;
+  --color-6: #54556a;
+  --color-7: #3f4050;
+  --color-8: #2a2b38;
+  --color-9: #1a1b24;
+  --color-10: #0f1017;
+}
+
+html, body {
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+}
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* Arial everywhere, no exceptions: Blaze's font variables point at it, and
+   one !important rule beats every UA default (pre, code, buttons, inputs)
+   and Blaze's own !important mono utilities. Glyphs Arial lacks (✕ ◀ ▶ ⧉)
+   still fall back per character. */
+:root {
+  --text-font-family-sans-serif: Arial, Helvetica, sans-serif;
+  --text-font-family-serif: Arial, Helvetica, sans-serif;
+  --text-font-family-mono: Arial, Helvetica, sans-serif;
+}
+*, *::before, *::after {
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+
+/* ---- layout: controls sidebar (≤20%) + full-width stretch main ---- */
+.app-layout {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
+.app-sidebar {
+  flex: 0 0 30%;
+  min-width: 300px;
+  max-width: 560px;
+  background: #090b0f;
+  padding: 12px 14px;
+  overflow-y: auto;
+}
+/* Generate stays reachable: the run area (button, checks, status, run rows)
+   pins to the bottom of the scrolling sidebar, edge to edge, on the sidebar's
+   own background; capped so a pile of run rows can't swallow the form */
+#run-area {
+  position: sticky; bottom: -12px; z-index: 5;
+  margin: 0 -14px -12px; padding: 10px 14px 12px;
+  background: #090b0f;
+  border-top: 1px solid var(--color-8);
+  max-height: 45vh; overflow-y: auto;
+}
+/* no key yet: one clear call to action above the form */
+.key-banner {
+  display: block; width: 100%; margin-bottom: 12px;
+  padding: 10px 12px; text-align: left; cursor: pointer;
+  background: rgba(255, 213, 74, .1); color: #ffd54a;
+  border: 1px solid #ffd54a; border-radius: var(--border-radius);
+  font-size: .9em; font-weight: bold;
+}
+.key-banner:hover { background: rgba(255, 213, 74, .18); }
+.key-banner[hidden] { display: none; }
+/* prompt length counter under the prompt box */
+.prompt-count { margin-top: 3px; text-align: right; font-size: .72em; color: var(--color-quiet); font-variant-numeric: tabular-nums; }
+.prompt-count--long { color: var(--color-warning); }
+.app-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 20px;
+  overflow-y: auto;         /* scrollbar sits at the far right of the pane */
+  background: #12141b;      /* the output grid's backdrop — one step lighter
+                               than the sidebar/header, same blue-black family
+                               as the hover popover so it still reads on top */
+}
+/* the output grid — always 3 columns (the only view); collapses to a single
+   column on smaller windows. Cards carry no chrome of their own: the video's
+   own rounded border IS the card. */
+.output-panel {
+  width: 100%;
+  padding: 16px 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: start;
+  gap: 18px;
+}
+.fav-empty { grid-column: 1 / -1; color: var(--color-quiet); font-size: .9em; text-align: center; padding: 24px 0; }
+@media (max-width: 1280px) { .output-panel { grid-template-columns: 1fr; } }
+.output-entry {
+  display: flex; flex-direction: column;
+  min-width: 0;             /* let grid children shrink to their column */
+}
+/* the media is the whole card; details (meta/actions/prompt) are hidden until
+   hover, then float in a compact popover directly under the media, ON TOP of
+   the cards below (z-index 999) — attached edge-to-edge (top: 100%, no gap)
+   so the pointer can slide from the video into the popover with no dead zone */
+.output-video-wrap { position: relative; }
+.output-details {
+  position: absolute; top: 100%; left: 0; right: 0;
+  z-index: 999;
+  display: none;
+  background: var(--color-9);       /* opaque — nothing shows through */
+  border: 1px solid var(--color-6);
+  border-radius: 10px;              /* mirrors the video's rounded corners at the seam */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .65);
+  padding: 10px 12px;
+}
+.output-entry:hover .output-details { display: block; }
+.output-details .output-meta { margin-top: 0; font-size: .78em; }
+.output-details .output-actions { flex-wrap: wrap; row-gap: 8px; }
+/* past RunningHub's 14-day retention the file is gone — the card grays out and
+   a small badge says why */
+.output-entry--expired .output-video video,
+.output-entry--expired .output-video img { filter: grayscale(1); opacity: .4; }
+.expired-badge {
+  position: absolute; top: 8px; right: 8px; z-index: 5;
+  background: rgba(0, 0, 0, .72); color: var(--color-quiet);
+  font-size: .68em; letter-spacing: .06em;
+  padding: 3px 8px; border-radius: 6px;
+}
+.val-expired { color: var(--color-4); }
+/* touch has no hover: no popover — details show inline below the media */
+@media (hover: none) {
+  .output-details { display: block; position: static; box-shadow: none; margin-top: 10px; }
+}
+.output-actions { display: flex; align-items: center; gap: 14px; }
+/* Remove — same outlined-button family as Preview / Extract Frame, with a red
+   hover accent to signal that it drops the card */
+.output-remove {
+  background: none; border: 1px solid #fff; border-radius: var(--border-radius);
+  color: #fff; font-size: .8em; font-weight: var(--text-font-weight-heavy);
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  cursor: pointer;
+}
+.output-remove:hover { border-color: var(--color-error); color: var(--color-error); filter: none; }
+/* favorites toggle — an outlined button like Preview / Extract Frame, holding
+   the star icon; favorited = star AND border go yellow */
+.output-fav, .output-dl {
+  background: none; border: 1px solid #fff; border-radius: var(--border-radius);
+  color: #fff; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: var(--spacing-xsmall) var(--spacing-small);
+}
+.output-fav svg, .output-dl svg { display: block; }
+.output-dl:hover { border-color: var(--color-info); color: var(--color-info); filter: none; }
+.output-dl:disabled { opacity: .45; cursor: progress; }
+.output-fav:hover { border-color: #ffd54a; color: #ffd54a; filter: none; }
+.output-fav.is-fav { border-color: #ffd54a; color: #ffd54a; }
+/* solid brand button — same colour variables as the Run button, badge-sized
+   like the @ImageN tag chips (padding/metrics mirror Blaze's .c-badge) */
+.output-regen {
+  background: var(--color-brand);
+  color: #fff;
+  border: none; border-radius: var(--border-radius);
+  font-size: .8em; font-weight: var(--text-font-weight-heavy);
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  cursor: pointer;
+}
+.output-regen:hover { filter: brightness(1.12); }
+/* Upscale button — same solid-button family as Regenerate, info blue */
+.output-upscale {
+  background: var(--color-info);
+  color: #fff;
+  border: none; border-radius: var(--border-radius);
+  font-size: .8em; font-weight: var(--text-font-weight-heavy);
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  cursor: pointer;
+}
+.output-upscale:hover { filter: brightness(1.12); }
+.output-upscale:disabled { opacity: .45; cursor: default; filter: none; }
+/* Preview / Extract Frame buttons — outlined buttons in the card's action row */
+.output-preview,
+.output-frame {
+  background: none; border: 1px solid #fff; border-radius: var(--border-radius);
+  color: #fff; font-size: .8em; font-weight: var(--text-font-weight-heavy);
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  cursor: pointer;
+}
+.output-preview:hover,
+.output-frame:hover { filter: brightness(1.25); }
+
+/* ---- Preview popup: the video at up to ~40% of the screen with a sharp white
+   1px border, no radius, ✕ above it + click outside (or Esc) to close ---- */
+.preview-modal {
+  position: fixed; inset: 0; z-index: 90;
+  background: rgba(0, 0, 0, .72);
+  display: flex; align-items: center; justify-content: center;
+}
+.preview-modal__box {
+  position: relative;
+  display: flex; align-items: flex-start; justify-content: center;
+  gap: 18px; flex-wrap: wrap; max-width: 94vw;
+}
+.preview-modal__box video {
+  display: block;
+  max-width: 40vw; max-height: 80vh;
+  border: 1px solid #fff; border-radius: 0;   /* sharp corners in the popup */
+  background: #000;
+  opacity: 0;                /* hidden until sized, so the element never flashes
+                                at the 300×150 default or a fractional size */
+}
+/* prompt panel — its own container at the video's right in the Preview popup,
+   TOP-ALIGNED with it, on the sidebar's background. Two tabs (Submitted / As
+   Typed); each pane scrolls on its own inside the panel's 80vh cap, with its
+   Copy button pinned under the text. */
+.preview-prompt {
+  width: 580px; max-width: 55vw; max-height: 80vh;
+  display: flex; flex-direction: column;
+  background: #090b0f;              /* same as the sidebar */
+  border: 1px solid var(--color-6);
+  border-radius: 10px;
+  padding: 12px 14px;
+  text-align: left;
+}
+.preview-prompt__tabs { flex: none; margin-bottom: 10px; }
+.preview-prompt__tabs .c-tabs__headings { margin-bottom: 0; }
+.preview-prompt__tabs .c-tab-heading { font-size: .82em; padding: 6px 12px; }
+/* flex + min-height:0 let the pane give up height when the panel hits 80vh */
+.preview-prompt__pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.preview-prompt__pane[hidden] { display: none; }
+.preview-prompt__note { flex: none; margin-bottom: 8px; font-size: .74em; color: var(--color-quiet); }
+/* Copy — solid brand purple, the Generate Video button's colour */
+.prompt-copy {
+  background: var(--color-brand);
+  color: #fff; border: none; border-radius: var(--border-radius);
+  font-size: .78em; font-weight: var(--text-font-weight-heavy);
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  cursor: pointer;
+}
+.prompt-copy:hover { filter: brightness(1.12); }
+.preview-prompt__scroll {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+}
+.preview-prompt__body {
+  margin: 0;
+  font-size: .8em; line-height: 1.2;
+  white-space: pre-wrap; word-break: break-word;
+  color: var(--color-2);
+}
+/* the copy button rides at the pane's bottom, under the (scrolling) text */
+.preview-prompt__foot { flex: none; margin-top: 10px; }
+.preview-modal__box video.is-sized { opacity: 1; }
+.preview-modal__close {
+  position: absolute; top: -36px; right: 0;
+  width: 30px; height: 30px;
+  background: none; border: none; cursor: pointer;
+  color: #fff; font-size: 20px; line-height: 1;
+}
+.preview-modal__close:hover { color: var(--color-brand); }
+/* popup column: the video + prompt row, then the Previous / Next bar under it */
+.preview-modal__stack {
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  max-width: 94vw;
+}
+.preview-nav { display: flex; align-items: center; gap: 14px; }
+.preview-nav__btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-width: 128px; justify-content: center;
+  padding: 10px 18px;
+  background: transparent; color: #fff;
+  border: 1px solid var(--color-brand); border-radius: var(--border-radius);
+  font-size: .9em; font-weight: bold; cursor: pointer;
+}
+.preview-nav__btn:hover:not(:disabled) { background: var(--color-brand); }
+.preview-nav__btn:disabled { opacity: .3; cursor: default; }
+.preview-nav__arrow { font-size: 1.1em; line-height: 1; }
+.preview-nav__count {
+  min-width: 64px; text-align: center;
+  font-size: .85em; color: var(--color-2); font-variant-numeric: tabular-nums;
+}
+/* UPSCALED indicator under the actions row of an action-produced entry */
+.upscaled-tag {
+  margin-top: 8px; font-size: .72em; font-weight: bold;
+  letter-spacing: .08em; color: #22e070;   /* bright green */
+}
+/* Settings tabs (RH API Key / LLM Provider / Advanced) */
+.settings-tabs .c-tabs__nav .c-tabs__headings { margin-bottom: 0; padding-bottom: 0; overflow: visible; }
+.app-dialog .c-tab-heading { font-size: .85em; padding: 8px 10px; }
+/* Tabs stay Blaze-default when unselected (no border). The selected tab gets a
+   dark fill + the app's blue accent border, rounded top corners. */
+.c-tab-heading.c-tab-heading--active {
+  background: var(--color-8);
+  border: 1px solid var(--color-info);
+  border-bottom: var(--spacing-xsmall) solid var(--color-info);
+  border-radius: 8px 8px 0 0;
+}
+/* unselected tabs: same rounded-top shape as the active one, no border, a
+   subtly darker fill so every tab reads as a tab. No hover feedback. */
+.c-tabs__headings .c-tab-heading:not(.c-tab-heading--active) {
+  background-color: rgba(0, 0, 0, .22);
+  border: 1px solid transparent;
+  border-bottom: var(--spacing-xsmall) solid transparent;
+  border-radius: 8px 8px 0 0;
+}
+.c-tabs__headings .c-tab-heading + .c-tab-heading { margin-left: 3px; }
+.c-tabs__headings .c-tab-heading:not(.c-tab-heading--active):hover {
+  --tab-heading-background: transparent;
+  --tab-heading-border-color: transparent;
+  --tab-heading-color: var(--color-text);
+}
+/* mobile: ONE natural page scroll. The desktop two-pane layout (body fixed at
+   100vh, sidebar + main each scrolling inside) squeezes .app-main to zero
+   height behind the non-shrinking sidebar, hiding the video outputs. */
+@media (max-width: 820px) {
+  body { height: auto; min-height: 100vh; min-height: 100dvh; }
+  .app-layout { flex-direction: column; }
+  .app-sidebar {
+    flex: none; width: auto; min-width: 0; max-width: none;
+    overflow-y: visible; border-right: none; border-bottom: 1px solid var(--color-8);
+  }
+  .app-main { padding: 0 10px; overflow-y: visible; }
+  /* one page scroll on mobile — a sticky run bar would cover the outputs below */
+  #run-area { position: static; margin: 0; padding: 10px 0 0; max-height: none; overflow: visible; }
+  .output-panel { width: 100%; }
+}
+
+.app-header {
+  position: sticky; top: 0; z-index: 20;
+  background: #0e1117;
+  border-bottom: 1px solid var(--color-8);
+}
+.app-header__inner {
+  display: flex; align-items: center; gap: var(--spacing-medium);
+  padding: var(--spacing-small) var(--spacing-medium); flex-wrap: wrap;
+}
+.app-brand { white-space: nowrap; }
+.wf-nav { display: flex; gap: var(--spacing-xsmall); flex-wrap: wrap; flex: 1; }
+/* Blaze's own --active is only a brightness filter (invisible here) — pin the
+   selected workflow button the same way icon-btn--active is pinned */
+.wf-nav .c-button--active {
+  color: var(--color-brand);
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 1px var(--color-brand) inset;
+}
+/* Favorites filter ON — the same pinning, in the star's yellow */
+#btn-favs.fav-on,
+#btn-favs.fav-on:hover {
+  color: #ffd54a;
+  border-color: #ffd54a;
+  box-shadow: 0 0 0 1px #ffd54a inset;
+}
+/* the header button's star icon sits on the text baseline optically */
+#btn-favs svg { vertical-align: -2px; }
+
+#alert-area .c-alert { margin: var(--spacing-small) var(--spacing-medium); }
+
+/* ---- form (sidebar) — compact ---- */
+.wf-field { margin-bottom: 12px; }
+.wf-field > .c-label { display: block; margin-bottom: 2px; }
+.wf-field .c-input, .wf-field .c-select, .wf-field .c-textarea { width: 100%; }
+/* 14px — same wrap-parity constraint as the .prompt-editor rule */
+.wf-field textarea.c-textarea { min-height: 10em; font-size: 14px; }
+.c-hint { font-size: .75em; color: var(--color-quiet); margin-top: 2px; }
+/* a hint shown only past a threshold (duration limits) — red while visible */
+.hint-alert { color: var(--color-error); }
+
+/* Advanced + nested accordion titles in the Run button's brand colour */
+details.wf-advanced > summary,
+details.wf-subgroup > summary {
+  cursor: pointer; color: var(--color-brand); font-size: .9em;
+}
+details.wf-advanced[open] > summary { margin-bottom: 10px; }
+.wf-advanced .wf-field { margin-bottom: 10px; }
+
+/* nested accordion inside Advanced (Sigma Shift) */
+details.wf-subgroup { margin: 2px 0 10px; }
+details.wf-subgroup[open] > summary { margin-bottom: 8px; }
+.wf-subgroup .wf-field { margin-bottom: 8px; }
+
+.wf-inline { display: flex; gap: var(--spacing-small); align-items: center; flex-wrap: wrap; }
+.wf-inline input[type="number"], .wf-inline .c-select { width: auto; }
+
+/* duration slider — yellow from warnAt (16s), red from dangerAt (21s+, 540P-only zone) */
+.slider-row { gap: var(--spacing-medium); }
+.slider-row .c-range { flex: 1; }
+.slider-value { min-width: 3em; text-align: right; font-weight: bold; }
+.slider-row.slider-warn .c-range { accent-color: var(--color-warning); }
+.slider-row.slider-warn .slider-value { color: var(--color-warning); }
+.slider-row.slider-danger .c-range { accent-color: var(--color-error); }
+.slider-row.slider-danger .slider-value { color: var(--color-error); }
+
+/* aspect-ratio icon buttons — plain CSS shapes */
+.icon-row { display: flex; gap: 6px; }
+.icon-btn { font-size: 1.15em; padding: 8px 16px; line-height: 1.2; }
+.icon-btn--active {
+  color: var(--color-brand);
+  border: 1px solid var(--color-brand);
+  box-shadow: 0 0 0 1px var(--color-brand) inset;
+}
+.shape-rect {
+  display: inline-block;
+  width: 1.5em; height: 0.9em;
+  border: 2px solid currentColor;
+  border-radius: 2px;
+}
+.shape-rect--portrait { width: 0.9em; height: 1.5em; }
+
+/* ---- reference media: dropzone with thumbnails + @ref tag badges ---- */
+.media-section { margin: 0 0 12px; }
+.media-dropzone {
+  /* thin line, lighter shade: reads clearly without a heavy 2px border */
+  border: 1px dashed var(--color-4); border-radius: .45em;
+  padding: 10px; cursor: pointer;
+}
+.media-dropzone:hover, .media-dropzone.dragover { border-color: var(--color-info); }
+.media-hint { font-size: .75em; color: var(--color-quiet); margin-bottom: 8px; }
+.media-grid { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.media-empty { color: var(--color-6); font-size: .8em; padding: 4px 2px; }
+.media-card { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.media-card-box { position: relative; }
+.media-thumb {
+  display: block; width: auto; height: auto;
+  max-width: 120px; max-height: 90px;
+  border-radius: 0;
+}
+.media-thumb-wrap { position: relative; display: block; }
+.media-audio-box {
+  width: 63px; height: 63px;
+  background: var(--color-background-offset-2);
+  border: 1px solid var(--color-8);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+}
+.media-icon-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.6em; color: #fff; text-shadow: 0 1px 4px rgba(0, 0, 0, .8);
+  pointer-events: none;
+}
+.media-icon-plain { font-size: 2em; color: var(--color-quiet); line-height: 1; }
+.media-remove {
+  position: absolute; top: 2px; right: 2px;
+  border: none; border-radius: 0; cursor: pointer; padding: 0 .4em;
+  background: rgba(0, 0, 0, .75); color: #fff; font-size: .8em;
+}
+.media-remove:hover { background: var(--color-error); }
+.media-tag { cursor: pointer; border: none; border-radius: 6px; }
+
+/* I2V / First-Last slots: two columns, each a one-image dropzone with the
+   thumbnail at its real aspect ratio + a compact Assets button underneath */
+.keyframe-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.kf-slot { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.kf-slot .c-label { margin: 0; }
+.kf-drop {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 96px; padding: 6px; box-sizing: border-box;
+}
+/* locked = greyed out (no icon): dimmed, desaturated, no hover highlight */
+.kf-drop--locked { cursor: not-allowed; opacity: .35; filter: grayscale(1); }
+.kf-drop--locked:hover, .kf-drop--fixed:hover { border-color: var(--color-4); }
+.kf-drop--fixed { cursor: not-allowed; }
+.kf-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  color: var(--color-quiet); font-size: .78em; text-align: center;
+}
+.kf-title { color: var(--color-text); font-size: 1.2em; font-weight: 700; }
+.kf-filled { display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 100%; }
+.kf-caption { color: var(--color-quiet); font-size: .72em; font-weight: 700; }
+.kf-drop .media-card-box { max-width: 100%; }
+.kf-thumb { max-width: 100%; max-height: 140px; }
+/* compact Assets buttons: above each keyframe slot (full width) and above the Reference dropzone */
+.asset-btn--sm, .media-tools .asset-btn { padding: 3px 8px; font-size: .72em; font-family: Arial, Helvetica, sans-serif; font-weight: 700; }
+.asset-btn--sm { width: 100%; }
+/* .media-note is for real warnings (files rejected, duplicates); .media-hint-note is plain
+   instructional text and shares the muted hint colour */
+.media-note { color: var(--color-warning); font-size: .72em; margin-top: 4px; }
+.media-note:empty { display: none; }
+.media-hint-note { color: var(--color-quiet); font-size: .72em; margin-top: 4px; }
+.media-hint-note:empty { display: none; }
+.media-tools { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+/* default Blaze button — only pinned so flex parents can't squeeze it */
+.asset-btn { flex: none; white-space: nowrap; }
+
+/* local asset library dialog — bigger than the settings dialog */
+#asset-dlg { width: min(58em, 96vw); }
+.asset-head { display: flex; align-items: baseline; justify-content: flex-start; gap: 10px; }
+.asset-head .c-button { margin-left: auto; flex: none; align-self: center; }
+.asset-grid { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; padding: 8px 0; max-height: 62vh; overflow-y: auto; }
+.asset-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  gap: 5px; width: 126px; height: 142px; cursor: pointer;
+}
+/* fixed thumb area so mixed image/audio/video assets line up in rows */
+.asset-card .media-card-box {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 108px;
+}
+.asset-card .media-thumb { max-width: 124px; max-height: 108px; }
+.asset-card:hover .media-thumb, .asset-card:hover .media-audio-box { outline: 1px solid var(--color-info); }
+/* in the current selection — click again to remove */
+.asset-card--selected { opacity: .4; filter: grayscale(1); }
+.asset-card--selected .media-thumb, .asset-card--selected .media-audio-box { outline: 2px solid var(--color-brand); }
+.asset-name {
+  width: 100%; text-align: center; font-size: .68em; color: var(--color-quiet);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.asset-empty { color: var(--color-6); font-size: .85em; padding: 12px 2px; }
+
+/* mode switch as Blaze tabs (no dropdown) */
+.wf-field .c-tabs__nav .c-tabs__headings { margin-bottom: 0; padding-bottom: 0; overflow: visible; }
+.wf-field .c-tab-heading { font-size: .85em; padding: 8px 6px; }
+
+/* prompt with @ref highlighting: transparent-text textarea over a synced backdrop.
+   BOTH layers must share identical typography (font/size/line-height/padding/border),
+   otherwise the caret drifts off the rendered text. */
+.prompt-editor { position: relative; }
+.prompt-editor .c-textarea,
+.prompt-highlight {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid rgb(118, 118, 118); border-radius: 6px;
+  /* font-size 14px is LOAD-BEARING: measured on the user's display, it is the
+     ONLY size where the native textarea and this div wrap at identical
+     characters (14.72 / 14.667 / 15 / 16 all diverge — the textarea quantizes
+     fractional glyph advances differently). Any other size reintroduces the
+     caret-drifting-off-text bug. */
+  font-family: inherit; font-size: 14px; line-height: 1.45; letter-spacing: normal;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.prompt-editor .c-textarea {
+  position: relative; z-index: 1;
+  display: block;
+  /* transparent so the .prompt-highlight backdrop below shows the real text
+     (this layer only paints the caret; an opaque bg here hides the text) */
+  background: transparent; color: transparent; caret-color: #000;
+  /* grows with its text up to this cap, then scrolls inside; the bar is hidden
+     above so a scrollbar never narrows these lines against the backdrop's */
+  max-height: 40vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+  resize: none;
+}
+.prompt-editor .c-textarea::-webkit-scrollbar { display: none; }
+.prompt-highlight {
+  position: absolute; inset: 0; z-index: 0;
+  overflow: hidden;
+  color: #000; background: #fff;
+  pointer-events: none;
+}
+/* Chip look for @ref tokens. Colour / background / outline ONLY — font-weight,
+   padding or margins here would change glyph advance widths inside the backdrop,
+   and the transparent textarea above would stop matching the visible text. */
+.ref-tag {
+  color: var(--color-brand);
+  background: color-mix(in srgb, var(--color-brand) 15%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand) 45%, transparent);
+  border-radius: 3px;
+}
+
+/* ---- run / status ---- */
+.run-bar { display: flex; gap: var(--spacing-small); align-items: center; flex-wrap: wrap; }
+/* per-run error/stuck line, on its own row under the run status row */
+.run-msg { flex-basis: 100%; font-size: .72em; color: var(--color-quiet); overflow-wrap: anywhere; }
+.run-msg:empty { display: none; }
+.run-row .c-badge--warning { background: var(--color-warning); }
+.status-line { margin-top: var(--spacing-small); color: var(--color-quiet); font-size: .92em; }
+.status-line .dots::after { content: ""; animation: dots 1.2s steps(4) infinite; }
+@keyframes dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+
+.lint-issues { margin: var(--spacing-small) 0 0; padding-left: 1.2em; }
+.lint-issues li { color: var(--color-error); font-size: .9em; margin-bottom: var(--spacing-tiny); }
+/* reference-check warnings — advisory, Generate stays enabled */
+.lint-warnings { margin: var(--spacing-small) 0 0; padding-left: 1.2em; }
+.lint-warnings li { color: var(--color-warning); font-size: .9em; margin-bottom: var(--spacing-tiny); }
+
+/* failure alert: plain-English hint + collapsible raw RunningHub details */
+.fail-hint-note { margin-top: 4px; font-size: .85em; color: var(--color-quiet); }
+.fail-details { margin-top: 6px; font-size: .84em; }
+.fail-details summary { cursor: pointer; color: var(--color-quiet); }
+.fail-details__raw {
+  margin: 6px 0 0; padding: 8px; max-height: 240px; overflow: auto;
+  background: #0b0b0e; border: 1px solid var(--color-8);
+  white-space: pre-wrap; overflow-wrap: anywhere; font-size: .92em;
+}
+
+/* ---- output panel (black, centered, full height, scrollable) ---- */
+.output-video video, .output-video img {
+  width: 100%;
+  aspect-ratio: 16 / 9;      /* letterbox everything, even 9:16 */
+  max-height: 70vh;
+  object-fit: contain;
+  background: #000;
+  border: 1px solid #4a4b58; /* dark gray — visible against the black video and
+                                the near-black page, less harsh than white */
+  border-radius: 10px;       /* the rounded border replaces the old gray card */
+  display: block;
+}
+.preview-placeholder {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 70vh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  background: #0b0b0e; color: var(--color-quiet);
+  border: 1px solid #4a4b58; /* matches the bordered video it turns into */
+  border-radius: 10px;       /* matches the video it turns into */
+  position: relative;
+  overflow: hidden;          /* the sweeping line clips at the rounded corners */
+}
+/* ---- "latent field" placeholder animation ----
+   16×9 dots; each span carries its wave delay in --d (set in startTrackedRun).
+   One keyframe, opacity + scale only = compositor. Brand #e717fa as rgba.
+   NOTE: no prefers-reduced-motion pause here on purpose — Windows machines
+   with "animation effects" off report reduce and would freeze the placeholder. */
+.latent-field {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: clamp(6px, 1.6vw, 12px);
+}
+.latent-field span {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: #e717fa;
+  opacity: .1;
+  transform: scale(.6);
+  animation: latent-resolve 3.2s ease-in-out infinite;
+  animation-delay: var(--d);
+}
+@keyframes latent-resolve {
+  0%, 100% { opacity: .1;  transform: scale(.6); }
+  30%      { opacity: .95; transform: scale(1.15); }
+  55%      { opacity: .25; transform: scale(.8); }
+}
+/* one quiet line under the field: "GENERATING  1m 42s" */
+.preview-caption {
+  display: flex; gap: 10px; align-items: baseline;
+  font-size: .72em; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--color-quiet);
+}
+.preview-elapsed {
+  font-variant-numeric: tabular-nums;   /* the timer doesn't jitter as digits change */
+  letter-spacing: .06em; color: var(--color-2);
+}
+.output-meta {
+  margin-top: 10px; font-size: .85em;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;
+}
+.output-meta .lbl { color: var(--color-quiet); }
+.output-meta .meta-sep { color: var(--color-6); }
+.val-seed { color: var(--color-highlight); }
+.val-date { color: var(--color-2); }
+.val-runtime { color: var(--color-info); }
+.val-coins { color: var(--color-success); }
+/* duration mismatch warning (video length ≠ requested Duration) */
+.val-warn { color: var(--color-warning); }
+.val-steps { color: var(--color-warning); }
+.val-resolution { color: var(--color-brand); }
+
+/* page older generations in one batch at a time */
+.load-older { grid-column: 1 / -1; justify-self: center; margin: 0 auto; }
+
+.task-id { font-size: .85em; }
+
+/* ---- settings dialog ---- */
+dialog.app-dialog { background: transparent; border: none; width: min(36em, 94vw); padding: 0; max-height: 92vh; }
+.app-dialog__card { max-height: 92vh; overflow-y: auto; position: relative; }
+/* top-right ✕ on the Settings / Assets dialogs — same glyph and hover as the preview popup's */
+.dialog-close {
+  position: absolute; top: 10px; right: 10px; z-index: 1;
+  width: 30px; height: 30px;
+  background: none; border: none; cursor: pointer;
+  color: var(--color-text); font-size: 20px; line-height: 1;
+}
+.dialog-close:hover { color: var(--color-brand); }
+/* keep ⤒ Upload clear of the ✕ (margin, not padding: u-window-box-none zeroes padding with !important) */
+.asset-head #btn-asset-upload { margin-right: 40px; }
+#asset-dlg .asset-filter { width: auto; flex: none; align-self: center; padding: 4px 8px; font-size: .85em; }
+/* Settings: RH API Key / LLM Provider / Advanced tabs */
+.settings-tabs { margin: 8px 0 4px; }
+.settings-pane { min-height: 9em; }
+
+/* header RH Coin balance chip */
+.rh-balance {
+  background: none; border: 1px solid var(--color-7); border-radius: var(--border-radius);
+  color: var(--color-text); padding: 6px 10px; cursor: pointer;
+  font-size: .85em; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.rh-balance:hover { border-color: var(--color-brand); }
+.rh-balance--loading { opacity: .55; }
+dialog.app-dialog::backdrop { background: rgba(0, 0, 0, .7); }
+.app-dialog .c-card, .app-dialog__card { background: var(--color-8); color: var(--color-text); }
+.app-dialog .c-label { color: var(--color-text); }
+.opt-toggle { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.opt-toggle input { margin: 0; }
+/* every checkbox in the app renders as a toggle switch in the Blaze palette */
+.opt-toggle input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 34px; height: 18px; flex: none;
+  border-radius: 9px; background: var(--color-7);
+  position: relative; cursor: pointer;
+  transition: background .15s ease;
+}
+.opt-toggle input[type="checkbox"]::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; transition: left .15s ease;
+}
+.opt-toggle input[type="checkbox"]:checked { background: var(--color-brand); }
+.opt-toggle input[type="checkbox"]:checked::after { left: 18px; }
+.opt-toggle input[type="checkbox"]:focus-visible { outline: 2px solid var(--color-info); outline-offset: 2px; }
+/* optimizer LLM provider — two native radios in one row (same pattern as the
+   Advanced section's mode switches); each shows its own credentials block */
+.opt-provider-row { display: flex; gap: 18px; margin-bottom: 4px; }
+.opt-provider-row .opt-toggle { display: inline-flex; }
+.opt-provider-row input[type="radio"] { accent-color: var(--color-brand); }
+.app-dialog .c-input, .app-dialog .c-select { background: var(--color-9); color: var(--color-text); width: 100%; box-sizing: border-box; }
+.app-dialog .c-input-group { display: flex; gap: var(--spacing-xsmall); }
+.app-dialog .c-input-group .c-input { flex: 1; width: auto; }
+.settings-danger { margin-top: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.settings-danger-note { font-size: .72em; color: var(--color-quiet); flex: 1; min-width: 12em; }
+.settings-contact {
+  margin-top: 16px; padding-top: 12px;
+  border-top: 1px solid var(--color-7);
+  font-size: 1.05em; font-weight: bold; color: var(--color-text);
+}
+.settings-contact .contact-mail { color: var(--color-brand); font-weight: bold; font-size: 1.1em; user-select: all; }
+
+/* Test buttons + inline result */
+.test-result { font-size: .78em; margin-top: 4px; }
+.test-result:empty { display: none; }
+.test-result.test-ok { color: var(--color-success); }
+.test-result.test-bad { color: var(--color-error); }

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+<!-- This site is hosted on Netlify. Anyone can build and deploy a site
+     like this one for free: https://netlify.new/?utm_campaign=loops&utm_source=ai-legible&utm_medium=owned&utm_content=comment&utm_id=ec5f77af-7c3a-4783-a6fe-0cebf13a0c7f
+     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Frame Commander — run MiniMax H3 video workflows on RunningHub straight from your browser. Static app, no backend; your API key stays in your browser.">
+  <meta name="theme-color" content="#0f1017">
+  <title>Frame Commander Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+  <link rel="stylesheet" href="./css/blaze.css?v=20261117">
+  <link rel="stylesheet" href="./css/app.css?v=20261117">
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header__inner">
+      <span class="app-brand">🎬 <strong>Frame Commander Dashboard</strong></span>
+      <nav id="wf-nav" class="wf-nav" aria-label="Workflows"></nav>
+      <button id="rh-balance" class="rh-balance" type="button" title="RunningHub balance for your API key — click to refresh" hidden></button>
+      <button id="btn-favs" class="c-button c-button--ghost" type="button" title="show only favorite videos">☆ Favorites</button>
+      <button id="btn-settings" class="c-button c-button--ghost" type="button">⚙ Settings</button>
+    </div>
+  </header>
+
+  <div id="alert-area" aria-live="polite"></div>
+
+  <div class="app-layout">
+    <aside class="app-sidebar" aria-label="Controls">
+      <button id="key-banner" class="key-banner" type="button" hidden>🔑 Paste your RunningHub API key to start →</button>
+      <section id="form-area" aria-label="Workflow inputs"></section>
+      <section id="run-area" aria-label="Run"></section>
+    </aside>
+    <main class="app-main">
+      <section id="output-area" class="output-panel" aria-label="Output"></section>
+    </main>
+  </div>
+
+  <dialog id="settings-dlg" class="app-dialog">
+    <div class="c-card app-dialog__card u-window-box-medium">
+      <button id="btn-close-settings" class="dialog-close" type="button" title="close" aria-label="close settings">✕</button>
+      <h3 class="u-xsmall u-loud u-window-box-none">Settings</h3>
+      <div class="c-tabs settings-tabs" role="tablist">
+        <div class="c-tabs__nav"><div class="c-tabs__headings">
+          <button class="c-tab-heading" type="button" role="tab" data-tab="rh">RH API Key</button>
+          <button class="c-tab-heading" type="button" role="tab" data-tab="llm">LLM Provider</button>
+          <button class="c-tab-heading" type="button" role="tab" data-tab="adv">Advanced</button>
+        </div></div>
+      </div>
+      <div class="settings-pane" data-pane="rh">
+      <div class="u-window-box-small">
+        <label class="c-label" for="set-key">RunningHub API Key</label>
+        <div class="c-input-group">
+          <input id="set-key" class="c-input" type="password" placeholder="paste your API key" autocomplete="off" spellcheck="false">
+          <button id="btn-reveal" class="c-button" type="button">show</button>
+          <button id="btn-test-rh" class="c-button" type="button">Test</button>
+        </div>
+        <div id="test-rh-result" class="test-result" aria-live="polite"></div>
+        <div class="c-hint">Stored only in this browser (localStorage), never sent anywhere except RunningHub.
+          Find it in RunningHub → account → API.</div>
+      </div>
+      </div>
+      <div class="settings-pane" data-pane="llm" hidden>
+      <div class="u-window-box-small">
+        <label class="c-label opt-toggle"><input id="set-opt" type="checkbox"> Optimize Prompt with the H3 Guide</label>
+        <div id="opt-fields" class="u-window-box-xsmall">
+          <div class="opt-provider-row">
+            <label class="opt-toggle"><input type="radio" name="opt-provider" value="gemini" checked> Gemini</label>
+            <label class="opt-toggle"><input type="radio" name="opt-provider" value="openai"> OpenAI Compatible</label>
+          </div>
+          <div id="opt-gemini-fields" class="u-window-box-xsmall">
+            <label class="c-label" for="set-optkey">Gemini API Key (Optimizer)</label>
+            <div class="c-input-group">
+              <input id="set-optkey" class="c-input" type="password" placeholder="paste your Gemini API key" autocomplete="off" spellcheck="false">
+              <button id="btn-opt-reveal" class="c-button" type="button">show</button>
+              <button id="btn-test-gemini" class="c-button" type="button">Test</button>
+            </div>
+            <div id="test-gemini-result" class="test-result" aria-live="polite"></div>
+            <label class="c-label" for="set-optmodel">Model</label>
+            <input id="set-optmodel" class="c-input" type="text" placeholder="gemini-3.5-flash-lite" autocomplete="off" spellcheck="false">
+          </div>
+          <div id="opt-openai-fields" class="u-window-box-xsmall" hidden>
+            <label class="c-label" for="set-oaibase">Base URL</label>
+            <input id="set-oaibase" class="c-input" type="text" placeholder="https://api.openai.com/v1" autocomplete="off" spellcheck="false">
+            <label class="c-label" for="set-oaikey">API Key</label>
+            <div class="c-input-group">
+              <input id="set-oaikey" class="c-input" type="password" placeholder="paste your API key (leave empty for keyless local servers)" autocomplete="off" spellcheck="false">
+              <button id="btn-oai-reveal" class="c-button" type="button">show</button>
+              <button id="btn-test-openai" class="c-button" type="button">Test</button>
+            </div>
+            <div id="test-openai-result" class="test-result" aria-live="polite"></div>
+            <label class="c-label" for="set-oaimodel">Model</label>
+            <input id="set-oaimodel" class="c-input" type="text" placeholder="model id, e.g. gpt-5.2" autocomplete="off" spellcheck="false">
+          </div>
+          <label class="c-label opt-toggle u-window-box-xsmall"><input id="set-optmedia" type="checkbox"> Read Media (Let the Optimizer See Your Reference Pictures)</label>
+          <div class="c-hint">Rewrites your prompt in this browser using the official MiniMax H3 prompt-writing guide
+            shipped in <code>guides/</code> — the same text as the H3 skill. The workflow's own optimizer stays off,
+            so the prompt is only rewritten once. Read media sends your reference <em>images</em> only — downscaled,
+            and labelled so the optimizer knows which one is <code>@Image1</code> — so the rewrite can describe what
+            is really in them. Video and audio references are never attached.</div>
+        </div>
+      </div>
+      </div>
+      <div class="settings-pane" data-pane="adv" hidden>
+      <div class="u-window-box-small">
+        <label class="c-label opt-toggle"><input id="set-sound" type="checkbox" checked> Alert when Generation is Completed</label>      </div>
+      </div>
+      <div class="u-window-box-small">
+        <button id="btn-save-settings" class="c-button c-button--brand" type="button">Save</button>
+      </div>
+      <div class="settings-danger">
+        <button id="btn-clear-storage" class="c-button c-button--error" type="button">Clear local storage</button>
+        <span class="settings-danger-note">Deletes every key, the asset library and the saved outputs from this browser.</span>
+      </div>
+      <div class="settings-contact">Contact me at <span class="contact-mail">framecommander[at]gmail.com</span></div>
+    </div>
+  </dialog>
+
+  <dialog id="asset-dlg" class="app-dialog">
+    <div class="c-card app-dialog__card u-window-box-medium">
+      <button id="btn-asset-close" class="dialog-close" type="button" title="close" aria-label="close asset library">✕</button>
+      <div class="asset-head u-window-box-none">
+        <h3 class="u-xsmall u-loud">Asset Library</h3>
+        <span id="asset-count" class="c-hint"></span>
+        <select id="asset-filter" class="c-select asset-filter" aria-label="show asset type">
+          <option value="all">All</option>
+          <option value="image">Images</option>
+          <option value="video">Videos</option>
+          <option value="audio">Audio</option>
+        </select>
+        <button id="btn-asset-upload" class="c-button c-button--brand" type="button"
+          title="add image/video/audio files from your computer to the library">⤒ Upload</button>
+        <input id="asset-upload-input" type="file" multiple accept="image/*,video/*,audio/*" hidden>
+      </div>
+      <div class="u-window-box-xsmall">
+        <div id="asset-note" class="c-hint" aria-live="polite"></div>
+      </div>
+      <div class="u-window-box-xsmall">
+        <div id="asset-grid" class="asset-grid"></div>
+        <div class="c-hint">Saved in this browser only (up to 100 files, newest first). Click an asset to use it; click it again to take it back out. Duplicates are never stored twice.</div>
+      </div>
+      <div class="u-window-box-small">
+        <button id="btn-asset-clear" class="c-button c-button--error" type="button">Clear library</button>
+      </div>
+    </div>
+  </dialog>
+
+  <noscript><p class="c-alert c-alert--warning">This app needs JavaScript.</p></noscript>
+  <script src="./js/rh-api.js?v=20261117"></script>
+  <script src="./js/h3-optimizer.js?v=20261117"></script>
+  <script src="./js/actions.js?v=20261117"></script>
+  <script src="./js/app.js?v=20261117"></script>
+</body>
+</html>
+<script async src="/.netlify/scripts/hud?variant=public" data-nf-variant="public" data-netlify-site-id="ec5f77af-7c3a-4783-a6fe-0cebf13a0c7f" data-app-host="app.netlify.com" data-account-tier="free"></script>

@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "app": { "name": "Frame Commander Dashboard" },
+  "actions": [],
+  "workflows": [
+    {
+      "id": "minimax-h3",
+      "name": "MiniMax H3 · SelfLift",
+      "tabLabel": "Video Gen",
+      "icon": "🎬",
+      "description": "MiniMax H3 audio-visual video (text / keyframe image / full reference / digital human) on the FastH3 8-step + DMAD + SelfLift stack — Omni 8-step for Reference, FastH3 8-step for I2V / First-Last. Resolutions 480P–768P (832P/928P Beta) · duration 3–20s (≥15s flagged red).",
+      "workflowId": "2114664760238227458",
+      "file": "minimax-h3-selflift.json",
+      "sendWorkflowJson": true,
+      "mediaLoaders": {
+        "target": "1",
+        "image": { "nodeId": "284", "fieldName": "image" },
+        "video": { "nodeId": "307", "fieldName": "file" },
+        "audio": { "nodeId": "308", "fieldName": "audio" }
+      },
+      "normalize": {
+        "1": {
+          "mode": "image",
+          "keyframe_role": "first",
+          "ref_image_size": "match",
+          "reference_mention_mode": "index",
+          "prompt_optimizer": false,
+          "prompt_optimizer_language": "en",
+          "prompt_optimizer_api_format": "gemini",
+          "prompt_optimizer_scene_guide": "none"
+        }
+      },
+      "singularity": {
+        "nodeId": "400",
+        "bridgeNode": "295",
+        "bridgeInputs": ["fl2va_model", "ref2va_model"],
+        "loader": { "class_type": "UNETLoader", "_meta": { "title": "Singularity V2" },
+          "inputs": { "unet_name": "Minimax-h3_Singularity_ref2va_v2_int8.safetensors", "weight_dtype": "default" } }
+      },
+      "outputKind": "video",
+      "outputNodes": ["158"],
+      "rules": [
+        { "when": { "field": "mode", "equals": "image" },
+          "media": { "images": { "min": 0, "max": 2 }, "videos": { "max": 0 }, "audios": { "max": 0 } } },
+        { "when": { "field": "mode", "equals": "reference" },
+          "media": { "any": true, "images": { "max": 9 }, "videos": { "max": 3 }, "audios": { "max": 3 } } }
+      ],
+      "fields": [
+        { "nodeId": "1", "fieldName": "mode", "label": "", "type": "tabs", "default": "image",
+          "options": [
+            { "value": "image", "label": "I2V / First-Last Frame" },
+            { "value": "reference", "label": "Reference to Video" }
+          ],
+          "optionOverrides": {
+            "image":     { "313": { "switch": false } },
+            "reference": { "313": { "switch": true } }
+          } },
+        { "nodeId": "1", "fieldName": "prompt", "label": "Prompt", "type": "textarea", "default": "",
+          "placeholder": "integrated_multimodal_description: [Shot 1] Cinematic, ...\noverall_soundscape: ...\nnon_diegetic_music: ..." },
+        { "nodeId": "1", "fieldName": "media", "label": "Reference Media", "type": "media",
+          "buckets": [
+            { "key": "images", "label": "Images", "accept": "image/*", "max": 9 },
+            { "key": "audios", "label": "Audio", "accept": "audio/*", "max": 3 },
+            { "key": "videos", "label": "Videos", "accept": "video/*", "max": 3 }
+          ],
+          "help": "Uploaded to RunningHub first; each file gets its own core Load Image / Load Video / Load Audio node, cloned from the template's 284 / 307 / 308. Limits depend on mode." },
+        { "nodeId": "1", "fieldName": "seconds", "label": "Duration", "type": "slider", "default": 5, "min": 3, "max": 30, "step": 1, "warnAt": 16, "dangerAt": 21,
+          "help": "768P and up = 20s recommended | 540P/640P = up to 30s. 640P can be unstable.", "helpFrom": 15 },
+        { "nodeId": "1", "fieldName": "resolution", "label": "Resolution", "type": "select", "default": "540P",
+          "options": ["480P", "540P", "640P", "720P", "768P",
+            { "value": "832P", "label": "832P (Beta)" },
+            { "value": "928P", "label": "928P (Beta)" }] },
+        { "nodeId": "1", "fieldName": "aspect_ratio", "label": "Aspect Ratio", "type": "iconselect", "default": "9:16",
+          "options": [
+            { "value": "9:16", "shape": "portrait", "label": "9:16 Portrait" },
+            { "value": "16:9", "shape": "landscape", "label": "16:9 Landscape" }
+          ] },
+
+        { "nodeId": "1", "fieldName": "keyframe_role", "type": "select", "default": "first", "placement": "keyframe", "advanced": true,
+          "options": [{ "value": "first", "label": "First Frame (I2VA)" }, { "value": "last", "label": "Last Frame (L2VA)" }] },
+
+        { "nodeId": "317", "fieldName": "cinematic", "label": "Cinematic Effect", "type": "checkbox", "default": false, "advanced": true,
+          "overrides": {
+            "on":  { "317": { "strength_model": 0.85 } },
+            "off": { "317": { "strength_model": 0 } }
+          } },
+
+        { "nodeId": "app", "fieldName": "singularity", "label": "Singularity V2", "type": "checkbox", "default": false, "advanced": true, "local": true },
+
+        { "nodeId": "261", "fieldName": "seed", "label": "Seed", "type": "seed", "advanced": true },
+
+        { "nodeId": "16", "fieldName": "steps", "label": "Steps", "type": "select", "valueType": "number", "default": 8, "advanced": true,
+          "options": [{ "value": 8, "label": "8 Steps" }, { "value": 12, "label": "12 Steps" }] },
+
+        { "nodeId": "261", "fieldName": "transition_step", "label": "Transition Step", "type": "slider", "default": 5, "min": 1, "max": 12, "step": 1, "advanced": true, "maxBelow": "steps", "group": "SelfLift" },
+
+        { "nodeId": "261", "fieldName": "lowres_scale", "label": "Low-Res Scale", "type": "slider", "default": 0.5, "min": 0.3, "max": 1, "step": 0.05, "advanced": true, "group": "SelfLift" }
+      ]
+    }
+  ]
+}
