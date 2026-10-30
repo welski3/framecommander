@@ -37,12 +37,12 @@ RunningHub API + preconfigured published workflow ID
 
 1. Open the [FrameCommander GitHub repository](https://github.com/welski3/framecommander).
 2. Select **Code → Download ZIP**.
-3. Keep the downloaded ZIP file as-is. **No extraction is needed for Netlify Drop.**
+3. Extract the downloaded GitHub ZIP into a folder on your computer. Netlify's **Drag and Drop** publisher currently asks for the extracted project folder, not the ZIP archive.
 
 ### Step 2 — Host your copy using Netlify Drop
 
 1. Open [Netlify Drop](https://app.netlify.com/drop).
-2. Drag and drop the **downloaded GitHub ZIP file** directly into Netlify Drop. You do not need to unzip it first.
+2. Drag the **extracted project folder** (containing `index.html`, `css/`, `js/`, and `api/`) into Netlify Drop.
 3. Open the new Netlify URL once the deployment completes.
 4. Confirm that the FrameCommander interface loads.
 
@@ -134,7 +134,7 @@ If you edit and publish your own compatible RunningHub workflow, changing the ID
 
 4. Replace **only the number between the quotes** with your own published workflow ID. Keep it as a **quoted string** and preserve the JSON syntax.
 5. Save `api/manifest.json`.
-6. ZIP the updated project files and upload that ZIP through Netlify Drop, or run them through `node serve.js` locally.
+6. Upload the updated **project folder** through Netlify Drop, or run it through `node serve.js` locally.
 7. Refresh the WebUI and run a test generation.
 
 **If your custom workflow has different node IDs or inputs:** changing `workflowId` alone may **not** be enough. This application also loads `api/minimax-h3-selflift.json` as a workflow template and uses `api/manifest.json` to map controls to node IDs and fields. Replace the template JSON and update the mappings as required to match your custom workflow. Keep these files consistent.
@@ -164,7 +164,7 @@ The tree above highlights the **files relevant to MiniMax H3**; the repository m
 
 | Issue | What to check |
 |---|---|
-| WebUI doesn't load on Netlify | Upload the complete GitHub ZIP to Netlify Drop; the deployed site must contain `index.html`, `css/`, `js/`, and `api/`. |
+| WebUI doesn't load on Netlify | Extract the GitHub ZIP, then upload the project folder to Netlify Drop; the deployed site must contain `index.html`, `css/`, `js/`, and `api/`. |
 | No RunningHub API key | Open Settings and enter your own RunningHub API key. |
 | Unauthorized / API error | Verify your API key, account access, API endpoint, credits, and browser connectivity. |
 | Published workflow isn't accessible | Confirm RunningHub access to the project's published workflow; if using your own workflow, edit `workflowId` in `api/manifest.json`. |
