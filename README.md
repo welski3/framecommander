@@ -95,23 +95,28 @@ This hosts only the **website interface**, not the ComfyUI AI engine.
 
 Do not open `index.html` directly via `file://`: browser security rules can prevent the WebUI from loading its JSON configuration. Use Netlify or the local server.
 
-## Optional — inspect, run, or customize the ComfyUI workflow in RunningHub
+## Optional — import and customize the visual ComfyUI workflow in RunningHub
 
-**You only need this section if you want to edit the workflow or work with the ComfyUI nodes directly.**
+**This section is optional.** The normal FrameCommander WebUI already connects to a published RunningHub workflow. Just deploy the WebUI and enter your personal Consumer-Membership RunningHub API key.
 
-The workflow is a **ComfyUI workflow that runs inside RunningHub's ComfyUI environment**; RunningHub is its execution host. The included API-format JSON represents the ComfyUI graph, not a standalone AI model or a native Netlify workflow.
+### Download the importable workflow
 
-- [MiniMax H3 ComfyUI API workflow JSON](api/minimax-h3-selflift.json)
+**[Download the Frame Commander FastH3 Omni SelfLift V1 visual workflow](Frame%20Commander%20FastH3%20Omni%20SelfLift%20V1.json)**
 
-To work on your own version:
+This is the **actual ComfyUI editor-format workflow**, containing its visual nodes and connections. It was created for the ComfyUI environment available in RunningHub.
 
-1. Download `api/minimax-h3-selflift.json` from this repository.
-2. Open the ComfyUI workspace in RunningHub. Import or load the JSON **if your RunningHub editor accepts API-format workflow JSON**.
-3. **Note the format distinction:** this repository's file is ComfyUI **API-format JSON** (node IDs and inputs). Some visual editors require the **UI-format workflow JSON** instead (with node positions and visual graph metadata). If the API-format import is rejected, use a compatible import method or obtain/re-create the UI-format graph. Do not assume every ComfyUI editor imports an API JSON as a visual canvas.
-4. Verify that RunningHub provides the custom nodes and model files used by the workflow; adjust inputs and test generation directly in RunningHub.
-5. Save or publish your modified workflow if you want to use it via API.
+To inspect, run, or modify it:
 
-**Important for reproducibility:** The JSON references specialized nodes including `MiniMaxH3Easy` and `SelfLiftH3Sampler`. It does not bundle custom-node source code or model weights. It works in the RunningHub environment where those components are available; running the same graph in a separate ComfyUI installation requires compatible nodes, model weights, dependencies, and sufficient hardware. Availability outside RunningHub has not been verified.
+1. Download the linked `Frame Commander FastH3 Omni SelfLift V1.json` file from this repository (on GitHub, select **Download raw file**).
+2. Sign into RunningHub and open a ComfyUI workspace where the required nodes and models are available.
+3. Import the downloaded JSON into the visual ComfyUI editor.
+4. Check for missing custom nodes, model files, or missing input media. Supply any required dependencies and change example media as necessary.
+5. Run the workflow directly in RunningHub; make edits and save your customized workflow as desired.
+6. If you want your modified workflow to power your own FrameCommander copy, publish it on RunningHub and follow the optional workflow ID instructions below.
+
+**Do not import `api/minimax-h3-selflift.json` as the visual workflow.** That is an **API-format execution template** used by the WebUI, not the importable editor-format workflow. Likewise, `api/manifest.json` configures the WebUI rather than defining the visual ComfyUI graph.
+
+**Environment and reproducibility:** This visual workflow is designed for RunningHub's ComfyUI environment. It uses specialized MiniMax H3 / SelfLift components and model weights, which are **not bundled** in this repository. It may also be possible to recreate the graph in another ComfyUI installation, but only after installing compatible custom nodes and model files. Availability outside RunningHub has not been independently verified. The application itself can run locally using `node serve.js`, but that does not run the AI engine locally.
 
 ## Optional — use your OWN RunningHub workflow ID in FrameCommander
 
@@ -140,7 +145,7 @@ If you edit and publish your own compatible RunningHub workflow, changing the ID
 
 ```text
 framecommander/
-├── index.html                     # Main WebUI
+├── Frame Commander FastH3 Omni SelfLift V1.json  # Importable visual ComfyUI workflow\n├── index.html                     # Main WebUI
 ├── css/                           # Styles
 ├── js/                            # WebUI logic and RunningHub API client
 ├── api/
@@ -163,7 +168,7 @@ The tree above highlights the **files relevant to MiniMax H3**; the repository m
 | No RunningHub API key | Open Settings and enter your own RunningHub API key. |
 | Unauthorized / API error | Verify your API key, account access, API endpoint, credits, and browser connectivity. |
 | Published workflow isn't accessible | Confirm RunningHub access to the project's published workflow; if using your own workflow, edit `workflowId` in `api/manifest.json`. |
-| ComfyUI workflow import fails | The supplied JSON is API-format; your editor may require UI-format. |
+| ComfyUI workflow import fails | Use the root-level `Frame Commander FastH3 Omni SelfLift V1.json` visual workflow, not the API-format JSON in `api/`. Also check custom-node availability. |
 | Custom workflow fails | Verify custom nodes, model files, input names, node IDs, template JSON, and manifest mappings. |
 | Prompt optimizer fails | Gemini/LLM key and optional optimization settings are separate from the RunningHub API key. |
 | Slow generation | RunningHub queue times, selected model settings, and account limits affect processing. |
@@ -182,6 +187,6 @@ RunningHub, ComfyUI, MiniMax H3, Gemini, third-party custom nodes, model weights
 
 ## Open Source Higgsfield contest
 
-FrameCommander is built around a ComfyUI workflow executed in RunningHub, with a separately deployable open-source WebUI. Its ComfyUI API-format workflow and integration code are included for inspection and modification; RunningHub and the necessary external nodes/models remain dependencies.
+FrameCommander is built around a ComfyUI workflow executed in RunningHub, with a separately deployable open-source WebUI. Its importable visual ComfyUI workflow, API-format execution template, and integration code are included for inspection and modification; RunningHub and the necessary external nodes/models remain dependencies.
 
 **Repository:** https://github.com/welski3/framecommander
